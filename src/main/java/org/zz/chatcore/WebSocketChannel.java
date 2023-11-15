@@ -1,7 +1,6 @@
 package org.zz.chatcore;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpObjectAggregator;
@@ -14,7 +13,6 @@ import org.slf4j.LoggerFactory;
 /**
  * @author songjiaqiang  2023/11/13
  */
-@ChannelHandler.Sharable
 public class WebSocketChannel extends ChannelInitializer {
     private static final Logger LOG = LoggerFactory.getLogger(WebSocketChannel.class);
 
