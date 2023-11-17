@@ -15,7 +15,7 @@ import java.util.List;
 @Data
 public class Group {
     private long groupId;
-    private long sponsor;
+    private Long sponsor;
     private List<Long> receiveIds;
     @Override
     public String toString() {

@@ -7,14 +7,15 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zz.pojo.Group;
 import org.zz.pojo.Message;
+import org.zz.pojovo.MessageVo;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -63,7 +64,12 @@ public class NettyHandler extends SimpleChannelInboundHandler<TextWebSocketFrame
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LIST.add(ctx);
         LOG.info("有新的连接进入当前连接数量:"+LIST.size());
-        //读取三条ES消息 推送给自己就行了;
+        //查询当前登录的用户是谁;
+        String s = ctx.channel().id().toString();
+//        if(USER_2_CHANNEL.containsKey(senderId)) return ;
+//        双向绑定
+//        USER_2_CHANNEL.put(senderId,ctx);
+//        CHANNEL_2_USER.put(ctx.channel().id().toString(),senderId);
     }
 
     /**
@@ -79,15 +85,33 @@ public class NettyHandler extends SimpleChannelInboundHandler<TextWebSocketFrame
         Message msg = null;
         try {
             msg = JSON.parseObject(text, Message.class);
+            //双向绑定
+            processInitMap(msg,ctx);
         }catch (Exception e){
             //序列化失败可能是建群操作;
-            Group group = JSON.parseObject(text, Group.class);
-            processInitGroup(group,ctx);
+            try {
+                Group group = JSON.parseObject(text, Group.class);
+                processInitGroup(group,ctx);
+            }catch (Exception ex){
+                LOG.error("msg group error:{}",ex);
+            }
             return ;
         }
-
-        if(Objects.isNull(msg)){
-            LOG.warn("消息体为null");
+        if(StringUtils.isBlank(msg.getContent())){
+            ctx.writeAndFlush(new TextWebSocketFrame(JSON.toJSONString(new MessageVo(System.currentTimeMillis(),0,"系统消息","不能发送空内容"))));
+            return ;
+        }
+        //不是Kong 向某个群发消息
+        if(msg.getGroupId()!=null&&GROUP_2_CHANNELS.containsKey(msg.getGroupId())){
+            List<ChannelHandlerContext> ctxs = GROUP_2_CHANNELS.get(msg.getGroupId());
+            MessageVo msgVo = new MessageVo(msg.getMsgId(), msg.getSenderId(), msg.getSubject(), msg.getContent(), msg.getSendTime(), msg.getReadTime());
+            if(CollectionUtils.isNotEmpty(ctxs)){
+                for (ChannelHandlerContext context : ctxs) {
+                    if(ctx!=context){
+                        context.writeAndFlush(new TextWebSocketFrame(JSON.toJSONString(msgVo)));
+                    }
+                }
+            }
             return ;
         }
         //建群,待思考
@@ -95,10 +119,23 @@ public class NettyHandler extends SimpleChannelInboundHandler<TextWebSocketFrame
             processInitGroup(msg,ctx);
             return ;
         }*/
-        //双向绑定
-        processInitMap(msg,ctx);
-
+        processMsg(ctx,msg);
         LOG.info("前端请求:"+textWebSocketFrame.text());
+    }
+    private void processMsg(ChannelHandlerContext ctx,Message msg){
+        Long receiveId = msg.getReceiveId();
+
+        if(receiveId!=null&& USER_2_CHANNEL.containsKey(receiveId)){
+            ChannelHandlerContext context = USER_2_CHANNEL.get(receiveId);
+            MessageVo msgVo = new MessageVo(msg.getMsgId(), msg.getSenderId(), msg.getSubject(), msg.getContent(), msg.getSendTime(), msg.getReadTime());
+            context.writeAndFlush(new TextWebSocketFrame(JSON.toJSONString(msgVo)));
+            return ;
+        }else{
+            //没在线
+            MessageVo msgVo = new MessageVo(msg.getMsgId(), 0, "系统消息", "对方可能不在线", msg.getSendTime(), msg.getReadTime());
+            ctx.writeAndFlush(new TextWebSocketFrame(JSON.toJSONString(msgVo)));
+        }
+
     }
     private void processInitMap(Message message,ChannelHandlerContext ctx){
         Long senderId = message.getSenderId();
