@@ -1,0 +1,9 @@
+server:
+  port: 9090
+
+logging:
+  level:
+    root: info      #指定根日志级别
+    org.zz.controller.UserLoginController: debug    #监听指定包中的日志，可以多个
+
+

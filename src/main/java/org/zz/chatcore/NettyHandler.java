@@ -10,6 +10,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 import org.zz.pojo.Group;
 import org.zz.pojo.Message;
 import org.zz.pojovo.MessageVo;
@@ -23,6 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * @author songjiaqiang  2023/11/13
  */
 @ChannelHandler.Sharable
+@Component
 public class NettyHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private static final Logger LOG = LoggerFactory.getLogger(NettyHandler.class);
 
